@@ -3,6 +3,7 @@
 #include <windows.h>
 using namespace std;
 //g++ bot.cpp -lgdi32
+//X:\WinPython-32bit-3.4.3.5\python-3.4.3\share\mingwpy\bin\g++.exe bot.cpp -lgdi32
 
 struct
 {
@@ -14,8 +15,8 @@ struct
 {
     int *p1, *p2, *p3, *p4;
 
-    int *pastelBlue;
-    int *doorGreyBorder;
+    int pastelBlue[3] = {96, 213, 240};
+    int doorGreyBorder[3] = {162, 162, 162};
 
 } colors;
 struct
@@ -24,12 +25,12 @@ struct
 } player;
 struct
 {
-    float punch1 = 0.0f, punch2 = 0.0f, punch3 = 0.0f,
-          punch4 = 0.0f, punch5 = 0.0f, punch6 = 0.0f, punch7;
+    int punch1 = 90, punch2 = 220, punch3 = 423,
+        punch4 = 625, punch5 = 830, punch6 = 1032, punch7 = 1232, punch8 = 2000, punch9 = 2000, punch10 = 1000;
 
-    float left = 0.0f, right = 0.0f;
-
-    float jump1 = 0.0f, jump2 = 0.0f, jump3 = 0.0f;
+    /*   int left = 163, right = 163; //no boots */
+    int left = 162, right = 162;
+    int jump1 = 50, jump2 = 153, jump3 = 320;
 
 } delayTimes;
 
@@ -109,7 +110,7 @@ int *getPx(int x, int y)
     arr[0] = (int)ScreenData[pos + 2];
     arr[1] = (int)ScreenData[pos + 1];
     arr[2] = (int)ScreenData[pos];
-    cout << "rgb (" << arr[0] << " " << arr[1] << " " << arr[2] << ")" << endl;
+    // cout << "rgb (" << arr[0] << " " << arr[1] << " " << arr[2] << ")" << endl;
     return arr;
 
     // now your image is held in hBitmap. You can save it or do whatever with it
@@ -130,19 +131,95 @@ int *getPx(int x, int y)
 int getColorSum(int arr[3])
 {
     int sum = arr[0] + arr[1] + arr[2];
+
     return sum;
 }
-bool ButtonPress(int Key)
-{
-    bool button_pressed = false;
+void mouseMove(int x, int y);
 
-    while (GetAsyncKeyState(Key))
-        button_pressed = true;
-
-    return button_pressed;
-}
-void setPlayerwindow()
+int *getPlayer(int divider = 3)
 {
+    screenshot();
+
+    //scan for playerposition
+    int bl = window.blockSize;
+    int *p1 = colors.p1,
+        *p2 = colors.p2,
+        *p3 = colors.p3,
+        *p4 = colors.p4;
+    int sum1 = getColorSum(p1),
+        sum2 = getColorSum(p2),
+        sum3 = getColorSum(p3),
+        sum4 = getColorSum(p4);
+
+    int pX, pY;
+SearchCoordinates:
+    int step = bl / divider;
+
+    for (int y = step; y < window.height - step - 1; y += step)
+    {
+        for (int x = step; x < window.width - step - 1; x += step)
+        {
+
+            int *px = getPx(x, y);
+            int sum = getColorSum(px);
+            if (sum == sum2 || sum == sum1 || sum == sum3 || sum == sum4)
+            {
+                if ((px[0] == p1[0] && px[1] == p1[1]) ||
+                    (px[0] == p2[0] && px[1] == p2[1]) ||
+                    (px[0] == p3[0] && px[1] == p3[1]) ||
+                    (px[0] == p3[0] && px[1] == p3[1]))
+                {
+                    pX = x;
+                    pY = y;
+                    delete[] px;
+                    goto Skip;
+                }
+            }
+            delete[] px;
+        }
+    }
+    divider = divider + 1;
+    goto SearchCoordinates;
+
+Skip:
+    int topY = pY, topX = pX;
+    int pYStart = pY - bl;
+    if (pYStart < 1)
+        pYStart = 1;
+    for (int y = pYStart; y < pY; y += 2)
+    {
+        int *px = getPx(pX, y);
+
+        int sum = getColorSum(px);
+        delete[] px;
+        if (sum == sum2 || sum == sum1 || sum == sum3 || sum == sum4)
+        {
+            topY = y;
+            break;
+        }
+    }
+    int pXStart = pX - bl;
+    if (pXStart < 1)
+        pXStart = 1;
+    for (int x = pXStart; x <= pX; x += 2)
+    {
+        int *px = getPx(x, topY);
+        int sum = getColorSum(px);
+        delete[] px;
+        if (sum == sum2 || sum == sum1 || sum == sum3 || sum == sum4)
+        {
+            topX = x;
+            break;
+        }
+    }
+
+    int *coords = new int[2];
+
+    coords[0] = (int)topX + (bl * 0.31);
+    coords[1] = (int)topY + (bl * 0.5);
+    cout << "Player center: " << coords[0] << " " << coords[1] << endl;
+    mouseMove(coords[0], coords[1]);
+    return coords;
 }
 //sets blockWidth and gets player colors
 void setBlockSize()
@@ -153,27 +230,34 @@ void setBlockSize()
     int pastelBlueSum = getColorSum(colors.pastelBlue);
     int doorSum = getColorSum(colors.doorGreyBorder);
 
+    // get Y coord by checking for not pastelBlue anymore
     for (int y = 0; y <= window.height; y++)
     {
-        int sum = getColorSum(getPx(0, y));
+        int *px = getPx(0, y);
+        int sum = getColorSum(px);
+        delete[] px;
         if (sum != pastelBlueSum)
         {
             yCoord = y;
             break;
         }
     }
+
     bool playerHasColor = false;
     int pCX = 0;
     int pCY = 0;
     int blockSize = 0;
 
     int y = yCoord;
+    //get blockSize by checking horizontally on y coord  when it is pastelBlue again
+    //get coordinates of upper left corner of player by checking not doorcolor anymore
+    //if we didnt find player coordinates we y++
 Loop1:
     for (int x = 0; x <= window.width / 3; x++)
     {
         int *px = getPx(x, y);
         int sum = getColorSum(px);
-        delete px;
+        delete[] px;
         if (sum == pastelBlueSum)
         {
             blockSize = x - 1;
@@ -191,10 +275,13 @@ Loop1:
         y += 1;
         goto Loop1;
     }
+
     window.blockSize = blockSize;
     int *pC1 = getPx(pCX, pCY);
     colors.p1 = pC1;
     int checkColor = getColorSum(pC1);
+
+    //get other colors of player
     int counter = 1;
     for (int x = pCX; x < blockSize; x++)
     {
@@ -206,6 +293,7 @@ Loop1:
             if (counter == 4)
             {
                 pCX = x - 1;
+                delete[] px;
                 break;
             }
             if (counter == 2)
@@ -218,21 +306,41 @@ Loop1:
             }
             checkColor = sum;
         }
+        else
+            delete[] px;
     }
+
     for (int y = pCY; y < pCY + blockSize; y++)
     {
         int *px = getPx(pCX, y);
         int sum = getColorSum(px);
+
         if (sum != checkColor)
         {
-            colors.p3 = px;
+            colors.p4 = px;
             break;
         }
+        delete[] px;
     }
-    cout << "player colors" << *colors.p1 << *colors.p2 << *colors.p3 << *colors.p4 << endl;
+    int *a = colors.p1;
+    cout << "p1 " << a[0] << " " << a[1] << " " << a[2] << endl;
+    a = colors.p2;
+    cout << "p2 " << a[0] << " " << a[1] << " " << a[2] << endl;
+    a = colors.p3;
+    cout << "p3 " << a[0] << " " << a[1] << " " << a[2] << endl;
+    a = colors.p4;
+    cout << "p4 " << a[0] << " " << a[1] << " " << a[2] << endl;
+
     cout << "blockSize: " << window.blockSize << endl;
 }
-void keyDown(WORD word, float delay)
+void mouseMove(int x, int y)
+{
+    SetCursorPos(x + window.left, y + window.top);
+}
+void mouseClick(int x, int y)
+{
+}
+void keyDown(WORD word, int delay)
 {
     // This structure will be used to create the keyboard
     // input event.
@@ -247,26 +355,42 @@ void keyDown(WORD word, float delay)
     // Press the "A" key
     ip.ki.wVk = word;  // virtual-key code for the "a" key
     ip.ki.dwFlags = 0; // 0 for key press
+
     SendInput(1, &ip, sizeof(INPUT));
     Sleep(delay);
     // Release the "A" key
-    ip.ki.dwFlags = KEYEVENTF_KEYUP; // KEYEVENTF_KEYUP for key release
+    // KEYEVENTF_KEYUP for key release
+    ip.ki.dwFlags = KEYEVENTF_KEYUP;
     SendInput(1, &ip, sizeof(INPUT));
 }
-void doMove(string action)
+void doMove(string action, int val = 0)
 {
     WORD up = 0x26;
     WORD left = 0x25;
     WORD right = 0x27;
     WORD space = 0x20;
-
     if (action == "right")
     {
         keyDown(right, delayTimes.right);
     }
     else if (action == "left")
     {
-        keyDown(right, delayTimes.left);
+        keyDown(left, delayTimes.left);
+    }
+    else if (action.find("punch") != string::npos)
+    {
+    }
+    else if (action.find("jump") != string::npos)
+    {
+    }
+
+    /*     if (action == "right")
+    {
+        keyDown(right, delayTimes.right);
+    }
+    else if (action == "left")
+    {
+        keyDown(left, delayTimes.left);
     }
     else if (action == "punch1")
     {
@@ -296,6 +420,18 @@ void doMove(string action)
     {
         keyDown(space, delayTimes.punch7);
     }
+    else if (action == "punch8")
+    {
+        keyDown(space, delayTimes.punch8);
+    }
+    else if (action == "punch9")
+    {
+        keyDown(space, delayTimes.punch9);
+    }
+    else if (action == "punch10")
+    {
+        keyDown(space, delayTimes.punch10);
+    }
     else if (action == "jump1")
     {
         keyDown(up, delayTimes.jump1);
@@ -307,11 +443,26 @@ void doMove(string action)
     else if (action == "jump3")
     {
         keyDown(up, delayTimes.jump3);
-    }
+    } */
+}
+void turnHandler(int arr)
+{
 }
 int main()
 {
     EnumWindows(EnumWindowsProc, NULL);
+
+    screenshot();
+    setBlockSize();
+
+    getPlayer();
+    int arr[19][19] = {{
+                           10,
+                       },
+                       {}};
+
+    /* int *a = getPx(0, 0);
+    cout << a[0] << a[1] << a[2] << endl; */
 
     /*    while (true)
     {
