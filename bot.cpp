@@ -1,6 +1,8 @@
 #include <iostream>
 #include <string>
 #include <windows.h>
+#include <vector>
+#include <boost/thread.hpp>
 using namespace std;
 //g++ bot.cpp -lgdi32
 //X:\WinPython-32bit-3.4.3.5\python-3.4.3\share\mingwpy\bin\g++.exe bot.cpp -lgdi32
@@ -9,8 +11,10 @@ struct
 {
     int top, right, bottom, left;
     int width, height;
+    int deskWidth, deskHeight;
     int blockSize;
 } window;
+
 struct
 {
     int *p1, *p2, *p3, *p4;
@@ -33,6 +37,13 @@ struct
     int jump1 = 50, jump2 = 153, jump3 = 320;
 
 } delayTimes;
+struct turnHandle
+{
+    int turns = 1;
+    string action1 = "none";
+    string action2 = "none";
+    string action3 = "none";
+};
 
 BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam)
 {
@@ -49,6 +60,14 @@ BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam)
         window.width = window.right - window.left;
         window.height = window.bottom - window.top;
 
+        RECT desktop;
+        // Get a handle to the desktop window
+        // Get the size of screen to the variable desktop
+        GetWindowRect(GetDesktopWindow(), &desktop);
+        window.deskHeight = desktop.bottom;
+        window.deskWidth = desktop.right;
+
+        cout << "deskWidth,Height: " << window.deskWidth << " " << window.deskHeight << endl;
         cout << "window : x1 " << window.left << ", y1 " << window.top << ", x2 " << window.right << ", y2 " << window.bottom << endl;
     }
 
@@ -218,7 +237,7 @@ Skip:
     coords[0] = (int)topX + (bl * 0.31);
     coords[1] = (int)topY + (bl * 0.5);
     cout << "Player center: " << coords[0] << " " << coords[1] << endl;
-    mouseMove(coords[0], coords[1]);
+    //mouseMove(coords[0], coords[1]);
     return coords;
 }
 //sets blockWidth and gets player colors
@@ -339,6 +358,45 @@ void mouseMove(int x, int y)
 }
 void mouseClick(int x, int y)
 {
+    INPUT Inputs[3] = {0};
+
+    Inputs[0].type = INPUT_MOUSE;
+    Inputs[0].mi.dx = x * (65535 / window.deskWidth);  // desired X coordinate
+    Inputs[0].mi.dy = y * (65535 / window.deskHeight); // desired Y coordinate
+    Inputs[0].mi.dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE;
+
+    Inputs[1].type = INPUT_MOUSE;
+    Inputs[1].mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
+    SendInput(3, Inputs, sizeof(INPUT));
+
+    Inputs[2].type = INPUT_MOUSE;
+    Inputs[2].mi.dwFlags = MOUSEEVENTF_LEFTUP;
+    SendInput(3, Inputs, sizeof(INPUT));
+}
+void mousePress(int delay, int yOffset)
+{
+    int *coords = getPlayer();
+    int x = (window.left + coords[0]) * (65535 / window.deskWidth);
+    int y = (window.top + coords[1] + (int)(yOffset * window.blockSize)) * (65535 / window.deskHeight);
+
+    cout << "mousepress: x" << x << " y" << y << endl;
+
+    delete[] coords;
+    INPUT Inputs[3] = {0};
+
+    Inputs[0].type = INPUT_MOUSE;
+    Inputs[0].mi.dx = x; // desired X coordinate
+    Inputs[0].mi.dy = y; // desired Y coordinate
+    Inputs[0].mi.dwFlags = MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE;
+
+    Inputs[1].type = INPUT_MOUSE;
+    Inputs[1].mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
+    SendInput(3, Inputs, sizeof(INPUT));
+    Sleep(delay);
+
+    Inputs[2].type = INPUT_MOUSE;
+    Inputs[2].mi.dwFlags = MOUSEEVENTF_LEFTUP;
+    SendInput(3, Inputs, sizeof(INPUT));
 }
 void keyDown(WORD word, int delay)
 {
@@ -363,90 +421,291 @@ void keyDown(WORD word, int delay)
     ip.ki.dwFlags = KEYEVENTF_KEYUP;
     SendInput(1, &ip, sizeof(INPUT));
 }
-void doMove(string action, int val = 0)
+void doMove(string action, int delay)
 {
+    cout << action << endl;
     WORD up = 0x26;
     WORD left = 0x25;
     WORD right = 0x27;
     WORD space = 0x20;
     if (action == "right")
-    {
+
         keyDown(right, delayTimes.right);
-    }
+
     else if (action == "left")
-    {
+
         keyDown(left, delayTimes.left);
+
+    else if (action.find("rel") != string::npos)
+    {
+
+        int yOffset = 0;
+        if (action.find("top") != string::npos)
+            yOffset = -1 * ((int)action[action.length() - 1] - 48);
+        else if (action.find("bottom") != string::npos)
+            yOffset = (int)action[action.length() - 1] - 48;
+        char check1 = action[8];
+        char check2 = action[9];
+        int delayTime;
+        if (check1 == '1')
+        {
+            if (check2 == '0')
+                delayTime = delayTimes.punch10;
+
+            else
+                delayTime = delayTimes.punch1;
+        }
+        else if (check1 == '2')
+            delayTime = delayTimes.punch2;
+        else if (check1 == '3')
+            delayTime = delayTimes.punch3;
+        else if (check1 == '4')
+            delayTime = delayTimes.punch4;
+        else if (check1 == '5')
+            delayTime = delayTimes.punch5;
+        else if (check1 == '6')
+            delayTime = delayTimes.punch6;
+        else if (check1 == '7')
+            delayTime = delayTimes.punch7;
+        else if (check1 == '8')
+            delayTime = delayTimes.punch8;
+        else if (check1 == '9')
+            delayTime = delayTimes.punch9;
+
+        mousePress(delayTime, yOffset);
     }
     else if (action.find("punch") != string::npos)
     {
+        char check1 = action[5];
+        char check2 = action[6];
+        int delayTime;
+        if (check1 == '1')
+        {
+            if (check2 == '0')
+                delayTime = delayTimes.punch10;
+            else
+                delayTime = delayTimes.punch1;
+        }
+        else if (check1 == '2')
+            delayTime = delayTimes.punch2;
+        else if (check1 == '3')
+            delayTime = delayTimes.punch3;
+        else if (check1 == '4')
+            delayTime = delayTimes.punch4;
+        else if (check1 == '5')
+            delayTime = delayTimes.punch5;
+        else if (check1 == '6')
+            delayTime = delayTimes.punch6;
+        else if (check1 == '7')
+            delayTime = delayTimes.punch7;
+        else if (check1 == '8')
+            delayTime = delayTimes.punch8;
+        else if (check1 == '9')
+            delayTime = delayTimes.punch9;
+
+        cout << "keyDown " << delayTime << endl;
+        keyDown(space, delayTime);
     }
     else if (action.find("jump") != string::npos)
     {
+        if (action == "jump1")
+            keyDown(up, delayTimes.jump1);
+
+        else if (action == "jump2")
+            keyDown(up, delayTimes.jump2);
+
+        else if (action == "jump3")
+            keyDown(up, delayTimes.jump3);
     }
 
-    /*     if (action == "right")
-    {
+    /*  if (action == "right")
+
         keyDown(right, delayTimes.right);
-    }
+
     else if (action == "left")
-    {
+
         keyDown(left, delayTimes.left);
-    }
-    else if (action == "punch1")
+
+    else if (action.find("rel") != string::npos)
     {
-        keyDown(space, delayTimes.punch1);
+
+        int yOffset = 0;
+        if (action.find("top") != string::npos)
+            yOffset = -1 * ((int)action[action.length() - 1] - 48);
+        else if (action.find("bottom") != string::npos)
+            yOffset = (int)action[action.length() - 1] - 48;
+        char check1 = action[8];
+        char check2 = action[9];
+        int delayTime;
+        if (check1 == '1')
+        {
+            if (check2 == '0')
+                delayTime = delayTimes.punch10;
+
+            else
+                delayTime = delayTimes.punch1;
+        }
+        else if (check1 == '2')
+            delayTime = delayTimes.punch2;
+        else if (check1 == '3')
+            delayTime = delayTimes.punch3;
+        else if (check1 == '4')
+            delayTime = delayTimes.punch4;
+        else if (check1 == '5')
+            delayTime = delayTimes.punch5;
+        else if (check1 == '6')
+            delayTime = delayTimes.punch6;
+        else if (check1 == '7')
+            delayTime = delayTimes.punch7;
+        else if (check1 == '8')
+            delayTime = delayTimes.punch8;
+        else if (check1 == '9')
+            delayTime = delayTimes.punch9;
+
+        mousePress(delayTime, yOffset);
     }
-    else if (action == "punch2")
+    else if (action.find("punch") != string::npos)
     {
-        keyDown(space, delayTimes.punch2);
+        char check1 = action[5];
+        char check2 = action[6];
+        int delayTime;
+        if (check1 == '1')
+        {
+            if (check2 == '0')
+                delayTime = delayTimes.punch10;
+            else
+                delayTime = delayTimes.punch1;
+        }
+        else if (check1 == '2')
+            delayTime = delayTimes.punch2;
+        else if (check1 == '3')
+            delayTime = delayTimes.punch3;
+        else if (check1 == '4')
+            delayTime = delayTimes.punch4;
+        else if (check1 == '5')
+            delayTime = delayTimes.punch5;
+        else if (check1 == '6')
+            delayTime = delayTimes.punch6;
+        else if (check1 == '7')
+            delayTime = delayTimes.punch7;
+        else if (check1 == '8')
+            delayTime = delayTimes.punch8;
+        else if (check1 == '9')
+            delayTime = delayTimes.punch9;
+
+        cout << "keyDown " << delayTime << endl;
+        keyDown(space, delayTime);
     }
-    else if (action == "punch3")
+    else if (action.find("jump") != string::npos)
     {
-        keyDown(space, delayTimes.punch3);
-    }
-    else if (action == "punch4")
-    {
-        keyDown(space, delayTimes.punch4);
-    }
-    else if (action == "punch5")
-    {
-        keyDown(space, delayTimes.punch5);
-    }
-    else if (action == "punch6")
-    {
-        keyDown(space, delayTimes.punch6);
-    }
-    else if (action == "punch7")
-    {
-        keyDown(space, delayTimes.punch7);
-    }
-    else if (action == "punch8")
-    {
-        keyDown(space, delayTimes.punch8);
-    }
-    else if (action == "punch9")
-    {
-        keyDown(space, delayTimes.punch9);
-    }
-    else if (action == "punch10")
-    {
-        keyDown(space, delayTimes.punch10);
-    }
-    else if (action == "jump1")
-    {
-        keyDown(up, delayTimes.jump1);
-    }
-    else if (action == "jump2")
-    {
-        keyDown(up, delayTimes.jump2);
-    }
-    else if (action == "jump3")
-    {
-        keyDown(up, delayTimes.jump3);
+        if (action == "jump1")
+            keyDown(up, delayTimes.jump1);
+
+        else if (action == "jump2")
+            keyDown(up, delayTimes.jump2);
+
+        else if (action == "jump3")
+            keyDown(up, delayTimes.jump3);
     } */
 }
-void turnHandler(int arr)
+void getDelay(string action, int &delayTime)
 {
+
+    if (action == "right")
+        delayTime = delayTimes.right;
+
+    else if (action == "left")
+
+        delayTime = delayTimes.left;
+
+    else if (action.find("rel") != string::npos)
+    {
+
+        char check1 = action[8];
+        char check2 = action[9];
+
+        if (check1 == '1')
+        {
+            if (check2 == '0')
+                delayTime = delayTimes.punch10;
+
+            else
+                delayTime = delayTimes.punch1;
+        }
+        else if (check1 == '2')
+            delayTime = delayTimes.punch2;
+        else if (check1 == '3')
+            delayTime = delayTimes.punch3;
+        else if (check1 == '4')
+            delayTime = delayTimes.punch4;
+        else if (check1 == '5')
+            delayTime = delayTimes.punch5;
+        else if (check1 == '6')
+            delayTime = delayTimes.punch6;
+        else if (check1 == '7')
+            delayTime = delayTimes.punch7;
+        else if (check1 == '8')
+            delayTime = delayTimes.punch8;
+        else if (check1 == '9')
+            delayTime = delayTimes.punch9;
+    }
+    else if (action.find("punch") != string::npos)
+    {
+        char check1 = action[5];
+        char check2 = action[6];
+        if (check1 == '1')
+        {
+            if (check2 == '0')
+                delayTime = delayTimes.punch10;
+            else
+                delayTime = delayTimes.punch1;
+        }
+        else if (check1 == '2')
+            delayTime = delayTimes.punch2;
+        else if (check1 == '3')
+            delayTime = delayTimes.punch3;
+        else if (check1 == '4')
+            delayTime = delayTimes.punch4;
+        else if (check1 == '5')
+            delayTime = delayTimes.punch5;
+        else if (check1 == '6')
+            delayTime = delayTimes.punch6;
+        else if (check1 == '7')
+            delayTime = delayTimes.punch7;
+        else if (check1 == '8')
+            delayTime = delayTimes.punch8;
+        else if (check1 == '9')
+            delayTime = delayTimes.punch9;
+    }
+    else if (action.find("jump") != string::npos)
+    {
+
+        delayTime = delayTimes.jump1;
+
+        delayTime = delayTimes.jump2;
+
+        delayTime = delayTimes.jump3;
+    }
+}
+void turnHandler(vector<turnHandle> *arr)
+{
+    for (turnHandle &t : *arr)
+    {
+        vector<string> moves;
+
+        if (t.action1 != "none")
+            moves.push_back(t.action1);
+        if (t.action2 != "none")
+            moves.push_back(t.action2);
+        if (t.action3 != "none")
+            moves.push_back(t.action3);
+
+        for (int i = 0; i < t.turns; i++)
+        {
+            for (string &action : moves)
+                doMove(action);
+        }
+    }
 }
 int main()
 {
@@ -454,12 +713,11 @@ int main()
 
     screenshot();
     setBlockSize();
-
-    getPlayer();
-    int arr[19][19] = {{
-                           10,
-                       },
-                       {}};
+    mouseClick(window.left, window.top);
+    vector<turnHandle> turnArr;
+    turnArr.push_back({2, "right"});
+    //turnArr.push_back({97, "right", "relpunch1center"});
+    turnHandler(&turnArr);
 
     /* int *a = getPx(0, 0);
     cout << a[0] << a[1] << a[2] << endl; */
