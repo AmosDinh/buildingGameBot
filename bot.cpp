@@ -1,5 +1,7 @@
 #include <iostream>
 #include <string>
+
+#include <sstream>
 #include <windows.h>
 #include <vector>
 #include <thread>
@@ -31,7 +33,11 @@ struct
     int *p1, *p2, *p3, *p4, *p5;
     int pastelBlue[3] = {96, 213, 240};
     int doorGreyBorder[3] = {162, 162, 162};
-    int inventoryOpenBtn[3] = {124, 187, 210};
+    //is fix because dropped items have same border, checks if (color = btn and lastcolorwasbtn1)
+    int inventoryOpenBtn0[3] = {164, 225, 248};
+    int inventoryOpenBtn1[3] = {130, 192, 216};
+    int inventoryOpenBtn2[3] = {124, 187, 210};
+
     int fourInventoryBox[3] = {164, 225, 249};
     int inventoryFist[3] = {221, 196, 141};
     //floats are inventory colors
@@ -54,8 +60,8 @@ struct
     int smallmovement = 40;
     int jump[3] = {50, 153, 320};
     //select inventory item;
-    int select = 500;
-    int drop = 500;
+    int select = 300;
+    int drop = 200;
 
 } delayTimes;
 struct turnHandle
@@ -109,8 +115,8 @@ void screenshot()
     HGDIOBJ old_obj = SelectObject(hDC, hBitmap);
     /* BOOL bRet =  */ //BitBlt(hDC, 0, 0, w, h, hScreen, x1, y1, SRCCOPY);
     BitBlt(hDC, 0, 0, w, h, hScreen, x1, y1, SRCCOPY);
-    /*  SelectObject(hDC, old_obj);
-    OpenClipboard(NULL);
+    SelectObject(hDC, old_obj);
+    /*   OpenClipboard(NULL);
     EmptyClipboard();
     SetClipboardData(CF_BITMAP, hBitmap);
     CloseClipboard(); */
@@ -345,7 +351,7 @@ Skip3:
     int *coords = new int[2];
     coords[0] = centerX; //(int)topX + (bl * 0.31);
     coords[1] = centerY; //(int)topY + (bl * 0.5);
-    mouseMove(coords[0], coords[1]);
+
     // cout << "Player center: " << coords[0] << " " << coords[1] << endl;
     return coords;
 }
@@ -544,22 +550,43 @@ void keyDown(WORD word, int delay)
 }
 int openInventory()
 {
+
     screenshot();
-    int *inventoryBtn = colors.inventoryOpenBtn;
-    int inventoryBtnSum = getColorSum(inventoryBtn);
+    int *inventoryBtn0 = colors.inventoryOpenBtn0;
+    int inventoryBtnSum0 = getColorSum(inventoryBtn0);
+    int *inventoryBtn1 = colors.inventoryOpenBtn1;
+    int inventoryBtnSum1 = getColorSum(inventoryBtn1);
+    int *inventoryBtn2 = colors.inventoryOpenBtn2;
+    int inventoryBtnSum2 = getColorSum(inventoryBtn2);
+
     int xCenter = window.width / 2;
+    bool lastColorWas0 = false;
+    bool lastColorWas1 = false;
+
     for (int y = window.height / 3; y < window.height; y++)
     {
+
         int *px = getPx(xCenter, y);
         int sum = getColorSum(px);
-        if (abs(sum - inventoryBtnSum) < 4 && abs(inventoryBtn[0] - px[0]) < 3 && abs(inventoryBtn[1] - px[1]) < 3)
+
+        if (abs(sum - inventoryBtnSum0) < 4 && abs(inventoryBtn0[0] - px[0]) < 3 && abs(inventoryBtn0[1] - px[1]) < 3)
         {
+            lastColorWas0 = true;
+        }
+        else if (lastColorWas0 && (abs(sum - inventoryBtnSum1) < 4 && abs(inventoryBtn1[0] - px[0]) < 3 && abs(inventoryBtn1[1] - px[1]) < 3))
+        {
+            lastColorWas1 = true;
+        }
+        else if (lastColorWas0 && lastColorWas1 && (abs(sum - inventoryBtnSum2) < 4 && abs(inventoryBtn2[0] - px[0]) < 3 && abs(inventoryBtn2[1] - px[1]) < 3))
+
+        {
+
             int check = (366.0 / 768) * window.height;
             delete[] px;
             if (window.height - y < check)
             {
                 mouseClick(xCenter, y);
-                Sleep(500);
+                Sleep(400);
                 return openInventory();
             }
             else
@@ -567,8 +594,12 @@ int openInventory()
                 return y;
             }
         }
+        else if (!lastColorWas1)
+            lastColorWas0 = false;
+
         delete[] px;
     }
+    cout << "openinventory" << endl;
 }
 int getMenuSquareSize(int y)
 {
@@ -781,6 +812,7 @@ void getDelay(string action, int &delay)
             }
         }
     SkipGetDelayJump:
+
         delay = delayTimes.jump[stoi(delayIndex) - 1];
     }
     else if (action == "adjust")
@@ -796,9 +828,18 @@ void getDelay(string action, int &delay)
         delay = delayTimes.drop;
     }
     else
-        delay = 1000;
+        delay = 500;
+    cout << "delay" << delay << endl;
 }
-
+void dropItem()
+{
+    WORD enter = 0x0D;
+    openInventory();
+    mouseClick(935, 615);
+    Sleep(1200);
+    keyDown(enter, 0);
+    /*    mouseMove(935, 615); */
+}
 void selectItem(float checkColorSum[3])
 {
     int inventoryY = openInventory();
@@ -932,42 +973,36 @@ void doMove(string action, int delay)
         int *coords = getPlayer();
         int horizontal = coords[0];
         delete[] coords;
-        int delay;
+        int delay, sleepdelay;
         getDelay("adjust", delay);
-
+        sleepdelay = delay * 4;
         int checkSide = window.width / 2 < horizontal ? window.width : 0;
         int checkdistance = window.width / 2 < horizontal ? window.width - window.blockSize * 1.5 : window.blockSize * 1.5;
         bool notAdjusted = true;
-    SkipAdjustPlayer:
 
-        cout << "horizont " << checkSide << " " << checkdistance << " " << checkdistance - horizontal << " " << horizontal << endl;
-        coords = getPlayer();
-        horizontal = coords[0];
-        delete[] coords;
+        while (!(abs(checkdistance - horizontal) < 5))
+        {
 
-        if (abs(checkdistance - horizontal) < 4)
-        {
-            cout << "checked" << endl;
-        }
-        else
-        {
             if (checkdistance > horizontal)
             {
                 doMove("right", delay);
                 cout << "right" << endl;
-                Sleep(delay * 2);
             }
             else
             {
                 doMove("left", delay);
                 cout << "left" << endl;
-                Sleep(delay * 2);
             }
-            goto SkipAdjustPlayer;
+            Sleep(sleepdelay);
+            coords = getPlayer();
+            cout << "got coords" << endl;
+            horizontal = coords[0];
+            cout << "horizont " << checkSide << " " << checkdistance << " " << abs(checkdistance - horizontal) << " " << horizontal << endl;
+            delete[] coords;
         }
     }
     else if (action == "drop")
-        keyDown(enter, delay);
+        dropItem();
 }
 
 //punch thread ends when moving finished;
@@ -1008,6 +1043,16 @@ void turnHandler(vector<turnHandle> *arr)
                 {
                     moveWait = punchDelay + 50 - moveDelay;
                 }
+            }
+            else
+            {
+                if (t.moveAction.find("jump") != string::npos)
+                {
+                    moveWait = moveDelay;
+                }
+            }
+            if (t.punchAction != "none")
+            {
                 //punchaction
                 if (t.punchAction.find("rel") != string::npos)
                 {
@@ -1018,14 +1063,7 @@ void turnHandler(vector<turnHandle> *arr)
                     t1 = thread(punchThread, t.punchAction, punchDelay, 0);
                 }
             }
-            else
-            {
-                if (t.moveAction.find("jump") != string::npos)
-                {
-                    moveWait = moveDelay;
-                }
-            }
-            cout << "delays " << moveDelay << " " << moveWait << " " << punchDelay << " " << punchWait << "\n";
+
             //moveaction
             for (int i = 0; i < t.turns; i++)
             {
@@ -1033,8 +1071,11 @@ void turnHandler(vector<turnHandle> *arr)
                 cout << t.moveAction << endl;
                 Sleep(moveWait);
             }
-            movingFinished = true;
-            t1.join();
+            if (t.punchAction != "none")
+            {
+                movingFinished = true;
+                t1.join();
+            }
         }
         else
         { //if no moveaction but punchaction
@@ -1047,7 +1088,7 @@ void turnHandler(vector<turnHandle> *arr)
         }
     }
 }
-vector<turnHandle> parseToTurnHandle(string s)
+vector<turnHandle> parseToTurnHandle(string &s)
 {
     string selectSeedAndBlockName = "pepper";
     vector<string> vTurns;
@@ -1062,15 +1103,17 @@ vector<turnHandle> parseToTurnHandle(string s)
     }
     //for the last
     vTurns.push_back(s);
-    vector<turnHandle> actions;
-    for (string t : vTurns)
+    vector<turnHandle> shorthandTurnHandle;
+    for (string &t : vTurns)
     {
-        cout << "Strings: " << t << endl;
         string delimiter = " ";
         size_t pos = 0;
         string token;
         int turnCount = 1;
-        string action1 = "none", action2 = "none";
+        string tmaction = "none", tpaction = "none";
+        //if string looks like "p7";
+        //while loop wont trigger, only the following if statement
+        //so no need to check in while loop if punch or moveaction
         while ((pos = t.find(delimiter)) != string::npos)
         {
             token = t.substr(0, pos);
@@ -1084,34 +1127,38 @@ vector<turnHandle> parseToTurnHandle(string s)
                     hasDigit = true;
             }
             if (isNum)
+            {
+
                 turnCount = stoi(token);
+            }
             else
             {
-                if (token.find("p") != string::npos && hasDigit)
-                    action2 = token;
-                else
-                    action1 = token;
+
+                tmaction = token;
             }
             t.erase(0, pos + delimiter.length());
         }
-        if (action1 == "none" || action2 == "none")
+        if (tmaction == "none" || tpaction == "none")
         {
-            if (t.find("p") != string::npos)
-                action2 = t;
+            if (((t[0] == 'r' && t[1] == 'p') || t[0] == 'p'))
+                tpaction = t;
             else
-                action1 = t;
+                tmaction = t;
         }
-        actions.push_back({turnCount, action1, action2});
+
+        shorthandTurnHandle.push_back({turnCount, tmaction, tpaction});
     }
     vector<turnHandle> finalVector;
     //rp1t2 = relativepunch1top2;
     //r = right,l = left; ss select seed; sb selectblock;
     //j1;
-    for (turnHandle t : actions)
+    bool lastWasPunchAction = false;
+    for (turnHandle &t : shorthandTurnHandle)
     {
-        cout << "actions: " << t.turns << " " << t.moveAction << " " << t.punchAction << endl;
-        string moveAction, punchAction;
+
+        string moveAction = "none", punchAction = "none";
         int mAFirstIndex = 0, mASecondIndex = 0;
+
         if (t.moveAction[0] == 'j')
         {
             //jump
@@ -1136,6 +1183,8 @@ vector<turnHandle> parseToTurnHandle(string s)
             moveAction = "selectdirtS";
         else if (t.moveAction == "sdb")
             moveAction = "selectdirtB";
+        else if (t.moveAction == "spb")
+            moveAction = "selectplatformB";
         else if (t.moveAction == "sf")
             moveAction = "selectfist";
         else if (t.moveAction == "drp")
@@ -1183,9 +1232,10 @@ vector<turnHandle> parseToTurnHandle(string s)
             }
             else
                 topbtmcenter = "center";
-            cout << "center"
-                 << " " << punchCount << " " << relSpecific << endl;
+            /*   cout << "center"
+                 << " " << punchCount << " " << relSpecific << endl;*/
             punchAction = "relpunch" + punchCount + topbtmcenter + relSpecific;
+            lastWasPunchAction = false;
         }
         else if (t.punchAction[0] == 'p')
         {
@@ -1199,8 +1249,12 @@ vector<turnHandle> parseToTurnHandle(string s)
                 }
             }
             //selectfist before punching
-            finalVector.push_back({1, "selectfist"});
+            if (!lastWasPunchAction)
+                finalVector.push_back({1, "selectfist"});
+            lastWasPunchAction = true;
         }
+        else
+            lastWasPunchAction = false;
         finalVector.push_back({t.turns, moveAction, punchAction});
     }
     return finalVector;
@@ -1229,13 +1283,12 @@ int main()
       a4[1] = 127;
     a4[2] = 111;
     colors.p1 = a1;   
-    colors.p2 = a2;
+    colors.p2 = a2;  
     colors.p3 = a3;
     colors.p4 = a4;
     window.blockSize = 85; */
     /*_______VECTOR INSTRUCTIONS_______*/
-    /*
-    r  = right
+    /* 
     l  = left
  ss = selectnamexS 
     sB = selectnamexB 
@@ -1243,9 +1296,41 @@ int main()
  rp1t2 = relpunch1top2
     p1 = punch1 will autoselect fist before;
     */
-    string s = "2 r,adj";
-    vector<turnHandle> turnArr = parseToTurnHandle(s);
+    // string s = "1 r,9 j2,rp7t1,rp7t2,spb,rp1t1,j2,adj,p7,96 r p7,adj,rp7t1,rp7t2,spb,rp1t1,j2,l,p7,96 l p7,adj,rp7t1,rp7t2,spb,rp1t1,j2,r";
+    //string s = "1 r,9 j2,rp7t1,rp7t2,spb,rp7t1,j2";
+    //  string s = "r,9 j2,sb,r,95 r rp1c1,r,95 l p3";
+    /*     vector<turnHandle> turnArr = {
+        {1, "right"},
+        {9, "jump2"},
+        {97, "right", "punch4"}, 
+        {1, "jump2"},
+         {97, "left", "punch4"},
+    }; */
+    /* parseToTurnHandle(s); */
+    /*  string gettopos = "r,11 j2";
+    string leftright = ",rp8t1,rp8t2,spb,rp1t1,j2,adj,p7,97 r p8,rp8t1,rp8t2,spb,rp1t1,j2,adj,l,p8,97 l p8";
+    string s = gettopos + leftright + leftright + leftright; */
+
+    string breakRowRight = ",96 r p4,r";
+    string breakRowLeft = ",96 l p4,l";
+
+    string placeRowRight = ",sb,96 r rp1c,r";
+    string placeRowLeft = ",sb,96 l rp1c,l";
+    string harvestRowRight = ",96 r p4,r";
+    string harvestRowLeft = ",96 l p4,l";
+    string jump = ",adj,j2";
+    stringstream ss;
+    ss << "r"
+       << ",adj,3 j2" << harvestRowRight << jump << harvestRowLeft << jump << harvestRowRight << jump << harvestRowLeft << jump << harvestRowRight << jump << harvestRowLeft << jump << harvestRowRight << jump << harvestRowLeft << ",5 l"
+       << ",r" << jump << placeRowRight << jump << placeRowLeft << jump << placeRowRight << jump << placeRowLeft << jump << placeRowRight << jump << placeRowLeft << jump << placeRowRight << jump << placeRowLeft << jump << placeRowRight << jump << placeRowLeft << ",5 l"
+       << ",r" << jump << breakRowRight << jump << breakRowLeft << jump << breakRowRight << jump << breakRowLeft << jump << breakRowRight << jump << breakRowLeft << jump << breakRowRight << jump << breakRowLeft << jump << breakRowRight << jump << breakRowLeft << ",5 l";
+    string s = ss.str();
+
+    vector<turnHandle>
+        turnArr = parseToTurnHandle(s);
+
     turnHandler(&turnArr);
+
     /*  vector<turnHandle> turnArr = {
         {1, "right"},
         {9, "jump2"},
