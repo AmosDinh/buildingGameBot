@@ -8,6 +8,8 @@
 //for time testing
 #include <conio.h>
 #include <math.h>
+//error handeling
+#include <stdexcept>
 
 using namespace std;
 //for properties.json:
@@ -62,6 +64,7 @@ struct
     //select inventory item;
     int select = 300;
     int drop = 200;
+    int respawn = 2750;
 
 } delayTimes;
 struct turnHandle
@@ -116,7 +119,7 @@ void screenshot()
     /* BOOL bRet =  */ //BitBlt(hDC, 0, 0, w, h, hScreen, x1, y1, SRCCOPY);
     BitBlt(hDC, 0, 0, w, h, hScreen, x1, y1, SRCCOPY);
     SelectObject(hDC, old_obj);
-    /*   OpenClipboard(NULL);
+    /*  OpenClipboard(NULL);
     EmptyClipboard();
     SetClipboardData(CF_BITMAP, hBitmap);
     CloseClipboard(); */
@@ -136,6 +139,9 @@ void screenshot()
     DeleteDC(hDC);
     DeleteObject(hBitmap);
 }
+int playerYCenter = 0;
+int playerXCenter = 0;
+int lastWasInCenter = false;
 int *getPx(int x, int y)
 {
     int pos = 4 * ((y * window.width) + x);
@@ -168,7 +174,7 @@ void mouseMove(int x, int y);
     return sqrt(a[0] - b[0]) + sqrt(a[1] - b[1]) + sqrt(a[2] - b[2]);
 } */
 
-int *getPlayer(int divider = 3)
+int *getPlayer(int divider = 3, bool isPunchCenter = false)
 {
     screenshot();
 
@@ -193,6 +199,7 @@ SearchCoordinates:
         {
             int *px = getPx(x, y);
             int sum = getColorSum(px);
+
             if (abs(sum - sum3) < 3 || abs(sum - sum5) < 3 || abs(sum - sum2) < 3 || abs(sum - sum1) < 3 || abs(sum - sum4) < 3)
             {
                 /*  cout << "passed1" << endl;
@@ -201,6 +208,7 @@ SearchCoordinates:
                      << abs(px[0] - p3[0]) << "&" << abs(px[1] - p3[1]) << "\n"
                      << abs(px[0] - p4[0]) << "&" << abs(px[1] - p4[1]) << "\n"
                      << endl; */
+
                 if ((abs(px[0] - p1[0]) < 3 && abs(px[1] - p1[1]) < 3) ||
                     (abs(px[0] - p5[0]) < 3 && abs(px[1] - p5[1]) < 3) ||
                     (abs(px[0] - p2[0]) < 3 && abs(px[1] - p2[1]) < 3) ||
@@ -220,19 +228,40 @@ SearchCoordinates:
     goto SearchCoordinates;
 
 Skip:
+    //Skips all if player is ruffly in the horizontal middle of screen;
+    if (isPunchCenter)
+    {
+        if (abs(window.width / 2 - pX) < bl * 1.1)
+        {
+            if (lastWasInCenter)
+            {
+                int *skipCoords = new int[2];
+                skipCoords[0] = playerXCenter; //(int)topX + (bl * 0.31);
+                skipCoords[1] = playerYCenter; //(int)topY + (bl * 0.5);
+
+                return skipCoords;
+            }
+            lastWasInCenter = true;
+        }
+        else
+            lastWasInCenter = false;
+    }
+
     int pYStart = pY - (int)(bl * 0.8);
     if (pYStart < 1)
         pYStart = 1;
     int pXStart = pX - (int)(bl * 0.7);
     if (pXStart < 1)
         pXStart = 1;
-    int newX, newY;
+    int newX = 0, newY = 0;
+
     for (int x = pXStart; x < pX; x += 2)
     {
         for (int y = pYStart; y < pY; y += 3)
         {
             int *px = getPx(x, y);
             int sum = getColorSum(px);
+
             /*    cout << "first" << endl; */
             if (abs(sum - sum3) < 3 || abs(sum - sum5) < 3 || abs(sum - sum2) < 3 || abs(sum - sum1) < 3 || abs(sum - sum4) < 3)
             {
@@ -252,29 +281,24 @@ Skip:
                     delete[] px;
                     goto Skip2;
                 }
-                delete[] px;
-                /*  }
-                else
-                    delete[] px; */
             }
-            else
-                delete[] px;
+
+            delete[] px;
         }
     }
 Skip2:
-    int centerX, centerY = pY + (bl / 3);
+    int centerX = 0, centerY = pY + (bl / 3);
     pXStart = pX + bl;
     if (pXStart > window.right)
         pXStart = window.right;
-    /* int limitX = pX-10;
-    if(pX<) */
+
     for (int x = pXStart; x > pX; x -= 2)
     {
         for (int y = pYStart; y < pY; y += 3)
         {
             int *px = getPx(x, y);
             int sum = getColorSum(px);
-            /*  cout << "second" << endl; */
+
             if (abs(sum - sum3) < 3 || abs(sum - sum5) < 3 || abs(sum - sum2) < 3 || abs(sum - sum1) < 3 || abs(sum - sum4) < 3)
             {
                 /*  if ((px[0] == p1[0] && px[1] == p1[1]) ||
@@ -289,29 +313,30 @@ Skip2:
                     (abs(px[0] - p4[0]) < 3 && abs(px[1] - p4[1]) < 3))
                 {
                     delete[] px;
+
                     centerX = newX + (x - newX) / 2;
                     if (y > newY)
                         pY = y;
                     // centerY = newY + bl * 0.5;
                     goto Skip3;
                 }
-                delete[] px;
-                /*  }
-                else
-                    delete[] px; */
             }
-            else
-                delete[] px;
+
+            delete[] px;
         }
     }
+
 Skip3:
+
     pYStart = pY + bl;
     if (pYStart > window.bottom)
         pYStart = window.bottom;
+
     for (int y = pYStart; y > pY - bl; y -= 2)
     {
         int *px = getPx(centerX, y);
         int sum = getColorSum(px);
+
         /*  cout << "second" << endl; */
         /*     Sleep(1);
        mouseMove(centerX, y);
@@ -331,26 +356,19 @@ Skip3:
             {
                 delete[] px;
                 centerY = pY + (y - pY) * 0.5 /* + (bl / 4) */;
-                /*     mouseMove(centerX, pY);
-                cout << "Y1" << endl;
-                Sleep(3000);
-                mouseMove(centerX, y);
-                cout << "Y2" << endl;
-                Sleep(3000);
-                mouseMove(centerX, centerY);
-                cout << "centerY" << endl;
-                Sleep(3000); */
+
                 break;
             }
-            else
-                delete[] px;
         }
-        else
-            delete[] px;
+
+        delete[] px;
     }
+
     int *coords = new int[2];
     coords[0] = centerX; //(int)topX + (bl * 0.31);
     coords[1] = centerY; //(int)topY + (bl * 0.5);
+    playerYCenter = centerY;
+    playerXCenter = centerX;
 
     // cout << "Player center: " << coords[0] << " " << coords[1] << endl;
     return coords;
@@ -369,6 +387,7 @@ void setBlockSize()
     {
         int *px = getPx(0, y);
         int sum = getColorSum(px);
+
         delete[] px;
         if (sum != pastelBlueSum)
         {
@@ -511,7 +530,16 @@ void mouseClick(int x, int y)
 }
 void mousePress(int delay, int yOffset)
 {
-    int *coords = getPlayer();
+    int *coords;
+    if (yOffset == 0)
+    {
+        //is relpunch1center dont need to check delay
+        coords = getPlayer(4, true);
+    }
+    else
+    {
+        coords = getPlayer();
+    }
     int x = (window.left + coords[0]) * (65535 / window.deskWidth);
     int y = (window.top + coords[1] + yOffset * window.blockSize) * (65535 / window.deskHeight);
     delete[] coords;
@@ -827,6 +855,10 @@ void getDelay(string action, int &delay)
     {
         delay = delayTimes.drop;
     }
+    else if (action == "respawn")
+    {
+        delay = delayTimes.respawn;
+    }
     else
         delay = 500;
     cout << "delay" << delay << endl;
@@ -913,6 +945,7 @@ SkipSelectItem1:
 
 void doMove(string action, int delay)
 {
+    cout << "action: " << action << endl;
     if (action == "none")
         return;
     WORD up = 0x26;
@@ -975,31 +1008,46 @@ void doMove(string action, int delay)
         delete[] coords;
         int delay, sleepdelay;
         getDelay("adjust", delay);
-        sleepdelay = delay * 4;
-        int checkSide = window.width / 2 < horizontal ? window.width : 0;
-        int checkdistance = window.width / 2 < horizontal ? window.width - window.blockSize * 1.5 : window.blockSize * 1.5;
-        bool notAdjusted = true;
 
-        while (!(abs(checkdistance - horizontal) < 5))
+        int checkSide = window.width / 2 < horizontal ? window.width : 0;
+        int checkdistance = window.width / 2 < horizontal ? window.width - window.blockSize * 1.45 : window.blockSize * 1.5;
+        bool firstTime = true;
+        char llOne = 'l', lOne = 'l';
+        sleepdelay = delay * 2;
+
+        while (!(abs(checkdistance - horizontal) < 5) && llOne == lOne)
         {
+            llOne = lOne;
 
             if (checkdistance > horizontal)
             {
                 doMove("right", delay);
                 cout << "right" << endl;
+                lOne = 'r';
             }
             else
             {
                 doMove("left", delay);
                 cout << "left" << endl;
+                lOne = 'l';
             }
             Sleep(sleepdelay);
             coords = getPlayer();
-            cout << "got coords" << endl;
+
             horizontal = coords[0];
-            cout << "horizont " << checkSide << " " << checkdistance << " " << abs(checkdistance - horizontal) << " " << horizontal << endl;
+            if (firstTime)
+                llOne = lOne;
             delete[] coords;
         }
+    }
+    else if (action == "respawn")
+    {
+        cout << "respawn" << endl;
+
+        mouseClick(980, 40);
+        Sleep(500);
+        mouseClick(512, 219);
+        Sleep(delay);
     }
     else if (action == "drop")
         dropItem();
@@ -1067,8 +1115,9 @@ void turnHandler(vector<turnHandle> *arr)
             //moveaction
             for (int i = 0; i < t.turns; i++)
             {
-                doMove(t.moveAction, moveDelay);
                 cout << t.moveAction << endl;
+                doMove(t.moveAction, moveDelay);
+
                 Sleep(moveWait);
             }
             if (t.punchAction != "none")
@@ -1191,6 +1240,8 @@ vector<turnHandle> parseToTurnHandle(string &s)
             moveAction = "drop";
         else if (t.moveAction == "adj")
             moveAction = "adjust";
+        else if (t.moveAction == "rspwn")
+            moveAction = "respawn";
 
         //punchAction
         if (t.punchAction[0] == 'r')
@@ -1257,6 +1308,7 @@ vector<turnHandle> parseToTurnHandle(string &s)
             lastWasPunchAction = false;
         finalVector.push_back({t.turns, moveAction, punchAction});
     }
+    cout << finalVector[0].moveAction << endl;
     return finalVector;
 }
 int main()
@@ -1302,28 +1354,58 @@ int main()
     /*     vector<turnHandle> turnArr = {
         {1, "right"},
         {9, "jump2"},
-        {97, "right", "punch4"}, 
+         {97, "right", "punch4"}, 
         {1, "jump2"},
-         {97, "left", "punch4"},
+         {97, "left", "punch4"},f
     }; */
     /* parseToTurnHandle(s); */
     /*  string gettopos = "r,11 j2";
     string leftright = ",rp8t1,rp8t2,spb,rp1t1,j2,adj,p7,97 r p8,rp8t1,rp8t2,spb,rp1t1,j2,adj,l,p8,97 l p8";
     string s = gettopos + leftright + leftright + leftright; */
 
-    string breakRowRight = ",96 r p4,r";
-    string breakRowLeft = ",96 l p4,l";
+    string breakRowRight = ",p4,96 r p4,r";
+    string breakRowLeft = ",p4,96 l p4,l";
 
     string placeRowRight = ",sb,96 r rp1c,r";
+
     string placeRowLeft = ",sb,96 l rp1c,l";
     string harvestRowRight = ",96 r p4,r";
-    string harvestRowLeft = ",96 l p4,l";
-    string jump = ",adj,j2";
+    string harvestRowLeft = ",96 l p4,l ";
+
+    string j = ",adj,j2";
     stringstream ss;
+    string dropFirst = ",48 r,rspwn,3 r,sb,drp,l 3,r";
+    string dropSecond = "96 r,rspwn,3 r,sb,drp,l 3,r";
+
     ss << "r"
-       << ",adj,3 j2" << harvestRowRight << jump << harvestRowLeft << jump << harvestRowRight << jump << harvestRowLeft << jump << harvestRowRight << jump << harvestRowLeft << jump << harvestRowRight << jump << harvestRowLeft << ",5 l"
+       << ",2 j2" << dropFirst << ",2 j2" << dropSecond
+       << ",3 j2" << dropFirst << ",3 j2" << dropSecond
+       << ",4 j2" << dropFirst << ",4 j2" << dropSecond
+       << ",5 j2" << dropFirst << ",5 j2" << dropSecond
+       << ",6 j2" << dropFirst << ",6 j2" << dropSecond
+       << ",7 j2" << dropFirst << ",7 j2" << dropSecond
+       << ",8 j2" << dropFirst << ",8 j2" << dropSecond
+       << ",9 j2" << dropFirst << ",9 j2" << dropSecond
+       << ",10 j2" << dropFirst << ",10 j2" << dropSecond
+       << ",11 j2" << dropFirst << ",11 j2" << dropSecond
+       << ",12 j2" << dropFirst << ",12 j2" << dropSecond
+       << ",13 j2" << dropFirst << ",13 j2" << dropSecond
+       << ",14 j2" << dropFirst << ",14 j2" << dropSecond
+       << ",15 j2" << dropFirst << ",15 j2" << dropSecond;
+    //ss << "r" << jump << harvestRowRight << jump << harvestRowLeft << jump << harvestRowRight << jump << harvestRowLeft << jump << harvestRowRight << jump << harvestRowLeft << jump << harvestRowRight << jump << harvestRowLeft << jump << harvestRowRight << jump << harvestRowLeft << jump << harvestRowRight << jump << harvestRowLeft << jump << harvestRowRight << jump << harvestRowLeft;
+    //18 9
+    /* ss << "r,9 j2" << placeRowRight << jump << placeRowLeft << ",15 l,4 r,5 l,r,11 j2"
+       << placeRowRight << jump << placeRowLeft << ",15 l,4 r,5 l,r,13 j2"
+       << placeRowRight << jump << placeRowLeft << ",15 l,4 r,5 l,r,15 j2"
+       << placeRowRight << jump << placeRowLeft << ",15 l,r,9 j2" << breakRowRight << jump << breakRowLeft << jump << breakRowRight << jump << breakRowLeft << jump << breakRowRight << jump << breakRowLeft << jump << breakRowRight << jump << breakRowLeft; */
+    // ss << "r,3 j2" << placeRowRight << jump << placeRowLeft << jump << placeRowRight << jump << placeRowLeft << jump << placeRowRight << jump << placeRowLeft << ",3 l,r,j2" << breakRowRight << jump << breakRowLeft << jump << breakRowRight << jump << breakRowLeft << jump << breakRowRight << jump << breakRowLeft << jump << breakRowRight << jump << breakRowLeft;
+    //ss << "r" << breakRowRight << jump << breakRowLeft << jump << breakRowRight << jump << breakRowLeft << jump << breakRowRight << jump << breakRowLeft << jump << breakRowRight << jump << breakRowLeft << jump << breakRowRight << jump << breakRowLeft;
+    //ss << "r,9 j2" << placeRowRight << jump << placeRowLeft << ",3 l,8 r,9 l,r,11 j2" << placeRowRight << jump << placeRowLeft;
+    /*  ss << "r" 
+        << ",adj,7 j2" << placeRowRight << jump << placeRowLeft << jump << placeRowRight << jump << placeRowLeft << jump << placeRowRight << jump << placeRowLeft << jump << placeRowRight << jump << placeRowLeft << jump << placeRowRight << jump << placeRowLeft << jump;  */
+    /* << harvestRowRight << jump << harvestRowLeft << jump << harvestRowRight << jump << harvestRowLeft << jump << harvestRowRight << jump << harvestRowLeft << jump << harvestRowRight << jump << harvestRowLeft << ",5 l"
        << ",r" << jump << placeRowRight << jump << placeRowLeft << jump << placeRowRight << jump << placeRowLeft << jump << placeRowRight << jump << placeRowLeft << jump << placeRowRight << jump << placeRowLeft << jump << placeRowRight << jump << placeRowLeft << ",5 l"
-       << ",r" << jump << breakRowRight << jump << breakRowLeft << jump << breakRowRight << jump << breakRowLeft << jump << breakRowRight << jump << breakRowLeft << jump << breakRowRight << jump << breakRowLeft << jump << breakRowRight << jump << breakRowLeft << ",5 l";
+       << ",r" << jump << breakRowRight a<< jump << breakRowLeft << jump << breakRowRight << jump << breakRowLeft << jump << breakRowRight << jump << breakRowLeft << jump << breakRowRight << jump << breakRowLeft << jump << breakRowRight << jump << breakRowLeft << ",5 l"; */
     string s = ss.str();
 
     vector<turnHandle>
