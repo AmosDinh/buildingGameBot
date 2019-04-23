@@ -43,9 +43,24 @@ struct
     int fourInventoryBox[3] = {164, 225, 249};
     int inventoryFist[3] = {221, 196, 141};
     //floats are inventory colors
-    float fist[3] = {220, 195, 139};
+    /*  float fist[3] = {220, 195, 139};
     float pepperS[3] = {71, 67, 42};
     float pepperB[3] = {105, 75, 55};
+    float platformB[3] = {128, 82, 33};
+    float dirtS[3] = {128, 82, 33};
+    float dirtB[3] = {128, 82, 33}; */
+
+    //Pepper Block : {105, 75, 55};
+    //Pepper Seed :{ 71, 67, 42};
+    //Chandelier Block : {251, 217, 31};
+    //Chandelier Seed : {172, 158, 64};
+    //Growtorial Entrance Block : {212.52, 212.52, 212.52};
+    //Small Lock : {169.971, 157.171, 98.4};
+
+    float fist[3] = {220, 195, 139};
+    float pepperS[3] = {172, 158, 64};
+    float pepperB[3] = {251, 217, 31};
+
     float platformB[3] = {128, 82, 33};
     float dirtS[3] = {128, 82, 33};
     float dirtB[3] = {128, 82, 33};
@@ -54,13 +69,21 @@ struct
 
 struct
 {
-    int punch[10] = {90, 220, 423, 625, 830, 1032, 1232, 2000, 2000, 2000};
+    //  int punch[10] = {90, 220, 423, 625, 830, 1032, 1232, 2000, 2000, 2000};
+    int punch[10] = {90, 220, 423, 650, 830, 1300, 1232, 1600, 2000, 2000};
     /*  int punch1 = 90, punch2 = 220, punch3 = 423,
         punch4 = 625, punch5 = 830, punch6 = 1032, punch7 = 1232, punch8 = 2000, punch9 = 2000, punch10 = 1000; */
     /*   int left = 163, right = 163; //no boots */
     int movement = 162;
+    int movement2 = 185;
+    int movement3 = 270;
+    int movement50 = 5000;
+    int movement100 = 11000;
+    //turn right or left
+    int turn = 40;
     int smallmovement = 40;
-    int jump[3] = {50, 153, 320};
+    /*   int jump[3] = {50, 153, 320}; */
+    int jump[3] = {50, 180, 320};
     //select inventory item;
     int select = 300;
     int drop = 200;
@@ -236,8 +259,8 @@ Skip:
             if (lastWasInCenter)
             {
                 int *skipCoords = new int[2];
-                skipCoords[0] = playerXCenter; //(int)topX + (bl * 0.31);
-                skipCoords[1] = playerYCenter; //(int)topY + (bl * 0.5);
+                skipCoords[0] = /*playerXCenter*/ window.width / 2; //(int)topX + (bl * 0.31);
+                skipCoords[1] = playerYCenter;                      //(int)topY + (bl * 0.5);
 
                 return skipCoords;
             }
@@ -528,7 +551,7 @@ void mouseClick(int x, int y)
     Inputs[2].mi.dwFlags = MOUSEEVENTF_LEFTUP;
     SendInput(3, Inputs, sizeof(INPUT));
 }
-void mousePress(int delay, int yOffset)
+void mousePress(int delay, int yOffset, int xOffset = 0)
 {
     int *coords;
     if (yOffset == 0)
@@ -540,7 +563,7 @@ void mousePress(int delay, int yOffset)
     {
         coords = getPlayer();
     }
-    int x = (window.left + coords[0]) * (65535 / window.deskWidth);
+    int x = (window.left + coords[0] + xOffset * window.blockSize) * (65535 / window.deskWidth);
     int y = (window.top + coords[1] + yOffset * window.blockSize) * (65535 / window.deskHeight);
     delete[] coords;
     INPUT Inputs[3] = {0};
@@ -627,7 +650,6 @@ int openInventory()
 
         delete[] px;
     }
-    cout << "openinventory" << endl;
 }
 int getMenuSquareSize(int y)
 {
@@ -799,6 +821,16 @@ void getDelay(string action, int &delay)
 {
     if (action == "right" || action == "left")
         delay = delayTimes.movement;
+    else if (action == "right2" || action == "left2")
+        delay = delayTimes.movement2;
+    else if (action == "right3" || action == "left3")
+        delay = delayTimes.movement3;
+    else if (action == "right50" || action == "left50")
+        delay = delayTimes.movement50;
+    else if (action == "right100" || action == "left100")
+        delay = delayTimes.movement100;
+    else if (action == "turnRight" || action == "turnLeft")
+        delay = delayTimes.turn;
     else if (action.find("punch") != string::npos)
     {
         //rel and normal punch
@@ -870,6 +902,7 @@ void dropItem()
     mouseClick(935, 615);
     Sleep(1200);
     keyDown(enter, 0);
+    Sleep(400);
     /*    mouseMove(935, 615); */
 }
 void selectItem(float checkColorSum[3])
@@ -945,26 +978,34 @@ SkipSelectItem1:
 
 void doMove(string action, int delay)
 {
-    cout << "action: " << action << endl;
+
     if (action == "none")
         return;
+    cout << "Action: " << action << endl;
     WORD up = 0x26;
     WORD left = 0x25;
     WORD right = 0x27;
     WORD space = 0x20;
     WORD enter = 0x0D;
-    if (action == "right")
+    if (action == "right" || action == "right2" || action == "right3" || action == "turnRight" || action == "right50" || action == "right100")
         keyDown(right, delay);
-    else if (action == "left")
+    else if (action == "left" || action == "left2" || action == "left3" || action == "turnLeft" || action == "left50" || action == "left100")
         keyDown(left, delay);
     else if (action.find("rel") != string::npos)
     {
         int yOffset = 0;
+        int xOffset = 0;
         if (action.find("top") != string::npos)
             yOffset = -1 * (action[action.length() - 1] - 48);
         else if (action.find("bottom") != string::npos)
             yOffset = action[action.length() - 1] - 48;
-        mousePress(delay, yOffset);
+        else if (action.find("left") != string::npos)
+            xOffset = -1 * (action[action.length() - 1] - 48);
+
+        else if (action.find("right") != string::npos)
+            xOffset = action[action.length() - 1] - 48;
+
+        mousePress(delay, yOffset, xOffset);
     }
     else if (action.find("punch") != string::npos)
 
@@ -993,56 +1034,47 @@ void doMove(string action, int delay)
     else if (action == "adjust")
     {
 
-        /*   if (action.find("right") != string::npos)
-        {
-            lr = "right";
-            leftright = right;
-        }
-        else
-        {
-            lr = "left";
-            leftright = left;
-        } */
         int *coords = getPlayer();
         int horizontal = coords[0];
         delete[] coords;
         int delay, sleepdelay;
         getDelay("adjust", delay);
 
-        int checkSide = window.width / 2 < horizontal ? window.width : 0;
         int checkdistance = window.width / 2 < horizontal ? window.width - window.blockSize * 1.45 : window.blockSize * 1.5;
         bool firstTime = true;
-        char llOne = 'l', lOne = 'l';
+        /*      char llOne = 'l', lOne = 'l'; */
         sleepdelay = delay * 2;
 
-        while (!(abs(checkdistance - horizontal) < 5) && llOne == lOne)
+        while (!(abs(checkdistance - horizontal) < 5) /*  && llOne == lOne */)
         {
-            llOne = lOne;
-
+            /*  llOne = lOne; */
+            cout << checkdistance << "checkdistacne hrizontal: " << horizontal << " width" << window.width << " blsize" << window.blockSize << endl;
             if (checkdistance > horizontal)
             {
                 doMove("right", delay);
-                cout << "right" << endl;
-                lOne = 'r';
+                //cout << "right" << endl;
+                /*  lOne = 'r'; */
             }
             else
             {
                 doMove("left", delay);
-                cout << "left" << endl;
-                lOne = 'l';
+                //  cout << "left" << endl;
+                /*  lOne = 'l'; */
             }
             Sleep(sleepdelay);
             coords = getPlayer();
 
             horizontal = coords[0];
-            if (firstTime)
-                llOne = lOne;
+            checkdistance = window.width / 2 < horizontal ? window.width - window.blockSize * 1.45 : window.blockSize * 1.5;
+            /*   if (firstTime)
+                llOne = lOne; */
+
             delete[] coords;
         }
     }
     else if (action == "respawn")
     {
-        cout << "respawn" << endl;
+        // cout << "respawn" << endl;
 
         mouseClick(980, 40);
         Sleep(500);
@@ -1057,7 +1089,8 @@ void doMove(string action, int delay)
 bool movingFinished;
 void punchThread(string action, int delay, int period)
 {
-    cout << "periodis1" << period << endl;
+    //test relpunch with no period;
+    period = 0;
     if (period == 0)
     {
         while (!movingFinished)
@@ -1115,7 +1148,7 @@ void turnHandler(vector<turnHandle> *arr)
             //moveaction
             for (int i = 0; i < t.turns; i++)
             {
-                cout << t.moveAction << endl;
+                //cout << t.moveAction << endl;
                 doMove(t.moveAction, moveDelay);
 
                 Sleep(moveWait);
@@ -1222,9 +1255,33 @@ vector<turnHandle> parseToTurnHandle(string &s)
         }
         else if (t.moveAction == "r")
             moveAction = "right";
+        else if (t.moveAction == "r2")
+            moveAction = "right2";
+        else if (t.moveAction == "r3")
+            moveAction = "right3";
+        else if (t.moveAction == "r50")
+            moveAction = "right50";
+        else if (t.moveAction == "r100")
+            moveAction = "right100";
+
         else if (t.moveAction == "l")
             moveAction = "left";
+        else if (t.moveAction == "l2")
+            moveAction = "left2";
+
+        else if (t.moveAction == "l3")
+            moveAction = "left3";
+        else if (t.moveAction == "l50")
+            moveAction = "left50";
+        else if (t.moveAction == "l100")
+            moveAction = "left100";
+
+        else if (t.moveAction == "tr")
+            moveAction = "turnRight";
+        else if (t.moveAction == "tl")
+            moveAction = "turnLeft";
         else if (t.moveAction == "ss")
+
             moveAction = "select" + selectSeedAndBlockName + "S";
         else if (t.moveAction == "sb")
             moveAction = "select" + selectSeedAndBlockName + "B";
@@ -1281,8 +1338,13 @@ vector<turnHandle> parseToTurnHandle(string &s)
             {
                 topbtmcenter = "bottom";
             }
-            else
+            else if (t.punchAction.find("c") != string::npos)
                 topbtmcenter = "center";
+            else if (t.punchAction.find("l") != string::npos)
+                topbtmcenter = "left";
+            else
+                topbtmcenter = "right";
+
             /*   cout << "center"
                  << " " << punchCount << " " << relSpecific << endl;*/
             punchAction = "relpunch" + punchCount + topbtmcenter + relSpecific;
@@ -1311,6 +1373,58 @@ vector<turnHandle> parseToTurnHandle(string &s)
     cout << finalVector[0].moveAction << endl;
     return finalVector;
 }
+string rowTurnMaker(int rows)
+{
+    //harvest is same as break but onepunch
+    string jump = ",adj,j2";
+
+    string harvestRowRight = ",tr,p1,97 r p1" + jump;
+    string harvestRowLeft = ",tl,p1,97 l p1" + jump;
+    string harvest = "r,j2";
+    for (int i = 0; i < rows; i++)
+    {
+        if (i % 2 == 0)
+            harvest += harvestRowRight;
+        else
+            harvestRowLeft;
+    }
+
+    //collect
+    //rows == respawns
+    string drop = ",rspwn,4 r,sb,drp,4 l,r";
+    string collectFirstHalf = ",17 r3";
+    string collectSecondHalf = ",33 r3";
+    string collect = drop;
+    for (int i = 1; i < rows + 1; i++)
+    {
+        string jumpString = ",adj," + to_string(i) + " j2";
+        collect += jumpString + collectFirstHalf + drop + jumpString + collectSecondHalf;
+    }
+
+    //place + break + dropseed
+    int blocksInTotal = rows * 3.75;
+    //to break
+    int howManyRows = 1 + ((blocksInTotal - 1) / 100);
+
+    /* int howManyTimes26Rows = 1 + ((howManyRows - 1) / 26);
+    string place = "";
+    int currentRows = 0;
+    for (int rows26 = 0; rows26 < howManyTimes26Rows; rows26++)
+    {
+        if (rows26 == 0)
+            currentRows =
+                for (int i = 0; i < ; i++)
+            {
+                if (i % 2 == 0)
+                    harvest += harvestRowRight;
+                else
+                    harvestRowLeft;
+            }
+    } */
+
+    //break + drop seed left;
+    //plant
+};
 int main()
 {
     EnumWindows(EnumWindowsProc, NULL);
@@ -1318,199 +1432,145 @@ int main()
     keyDown(0x27, 30);
     screenshot();
     setBlockSize();
-    /*  int *a1 = new int[3];
-    int *a2 = new int[3];
-    int *a3 = new int[3];
-    int *a4 = new int[3];
-    a1[0] = 125;
-    a1[1] = 95;
-    a1[2] = 83;
-    a2[0] = 138;
-    a2[1] = 106;
-    a2[2] = 93;
-    a3[0] = 153;
-    a3[1] = 117;
-    a3[2] = 102;
-    a4[0] = 166; 
-      a4[1] = 127;
-    a4[2] = 111;
-    colors.p1 = a1;   
-    colors.p2 = a2;  
-    colors.p3 = a3;
-    colors.p4 = a4;
-    window.blockSize = 85; */
-    /*_______VECTOR INSTRUCTIONS_______*/
-    /* 
-    l  = left
- ss = selectnamexS 
-    sB = selectnamexB 
-    sf = selectfist
- rp1t2 = relpunch1top2
-    p1 = punch1 will autoselect fist before;
-    */
-    // string s = "1 r,9 j2,rp7t1,rp7t2,spb,rp1t1,j2,adj,p7,96 r p7,adj,rp7t1,rp7t2,spb,rp1t1,j2,l,p7,96 l p7,adj,rp7t1,rp7t2,spb,rp1t1,j2,r";
-    //string s = "1 r,9 j2,rp7t1,rp7t2,spb,rp7t1,j2";
-    //  string s = "r,9 j2,sb,r,95 r rp1c1,r,95 l p3";
-    /*     vector<turnHandle> turnArr = {
-        {1, "right"},
-        {9, "jump2"},
-         {97, "right", "punch4"}, 
-        {1, "jump2"},
-         {97, "left", "punch4"},f
-    }; */
-    /* parseToTurnHandle(s); */
-    /*  string gettopos = "r,11 j2";
-    string leftright = ",rp8t1,rp8t2,spb,rp1t1,j2,adj,p7,97 r p8,rp8t1,rp8t2,spb,rp1t1,j2,adj,l,p8,97 l p8";
-    string s = gettopos + leftright + leftright + leftright; */
 
-    string breakRowRight = ",p4,96 r p4,r";
-    string breakRowLeft = ",p4,96 l p4,l";
+    string bRowL = ",tl,p1,l100 p1";
+    string bRowR = ",tr,p1,r100 p1";
+    string jmp = ",adj,j2";
+    string breakTotal = ",rspwn,r,j2" +
+                        bRowR + ",rspwn,r,j2" + bRowR + ",rspwn,r,2 j2" +
+                        bRowR + bRowL + jmp +
+                        bRowR + bRowL + jmp +
+                        bRowR + bRowL + jmp +
+                        bRowR + bRowL + jmp +
+                        bRowR + bRowL + jmp +
+                        bRowR + bRowL + jmp +
+                        bRowR + bRowL + jmp +
+                        bRowR + bRowL + jmp +
+                        bRowR + bRowL + jmp +
+                        bRowR + bRowL + jmp +
+                        bRowR + bRowL + jmp +
+                        bRowR + bRowL + jmp +
+                        bRowR + bRowL + jmp +
+                        bRowR + bRowL + jmp /* +
+                        bRowR + bRowL + jmp +
+                        bRowR + bRowL + jmp +
+                        bRowR + bRowL + jmp +
+                        bRowR + bRowL + jmp */
+        ;
 
-    string placeRowRight = ",sb,96 r rp1c,r";
+    string drop2 = ",rspwn,3 r,sb,drp,3 l,r";
+    string drop = ",rspwn,4 r,sb,drp,4 l,r";
+    string cF = ",r50 p1";
+    string cS = ",r100 p1";
+    string collect = drop + ",j2" + cF + drop + ",j2" + cS + drop +
+                     ",2 j2" + cF + drop + ",2 j2" + cS + drop +
+                     ",3 j2" + cF + drop + ",3 j2" + cS + drop +
+                     ",4 j2" + cF + drop + ",4 j2" + cS + drop +
+                     ",5 j2" + cF + drop + ",5 j2" + cS + drop +
+                     ",6 j2" + cF + drop + ",6 j2" + cS + drop +
+                     ",7 j2" + cF + drop + ",7 j2" + cS + drop +
+                     ",8 j2" + cF + drop + ",8 j2" + cS + drop +
+                     ",9 j2" + cF + drop + ",9 j2" + cS + drop +
+                     ",10 j2" + cF + drop + ",10 j2" + cS + drop +
+                     ",11 j2" + cF + drop2 + ",11 j2" + cS + drop2 +
+                     ",12 j2" + cF + drop2 + ",12 j2" + cS + drop2 +
+                     ",13 j2" + cF + drop2 + ",13 j2" + cS + drop2 +
+                     ",14 j2" + cF + drop2 + ",14 j2" + cS + drop2 +
+                     ",15 j2" + cF + drop2 + ",15 j2" + cS + drop2 /* +
+                     ",16 j2" + cF + drop2 + ",16 j2" + cS + drop2 +
+                     ",17 j2" + cF + drop2 + ",17 j2" + cS + drop2 +
+                     ",18 j2" + cF + drop2 + ",18 j2" + cS + drop2 +
+                     ",19 j2" + cF + drop2 + ",19 j2" + cS + drop2 +
+                     ",20 j2" + cF + drop2 + ",20 j2" + cS + drop2 +
+                     ",21 j2" + cF + drop2 + ",21 j2" + cS + drop2 +
+                     ",22 j2" + cF + drop2 + ",22 j2" + cS + drop2 */
+        ;
 
-    string placeRowLeft = ",sb,96 l rp1c,l";
-    string harvestRowRight = ",96 r p4,r";
-    string harvestRowLeft = ",96 l p4,l ";
+    string pRL = ",sb,33 r3 rp1c1,j2,33 l3 rp1c1,rspwn,5 r,5 l,r,adj";
+    //l because left side menus make accidental click easy
+    string place = ",rspwn,4 r,4 l,r,adj,j2" + pRL +
+                   /*      ",3 j2" + pRL +
+                   ",5 j2" + pRL +
+                   ",7 j2" + pRL +
+                   ",9 j2" + pRL +
+                   ",11 j2" + pRL +
+                   ",13 j2" + pRL + */
+                   ",15 j2" + pRL +
+                   ",17 j2" + pRL +
+                   ",19 j2" + pRL +
+                   ",21 j2" + pRL +
+                   ",23 j2" + pRL +
+                   ",25 j2" + ",sb,33 r3 rp1c1,l";
 
-    string j = ",adj,j2";
-    stringstream ss;
-    string dropFirst = ",48 r,rspwn,3 r,sb,drp,l 3,r";
-    string dropSecond = "96 r,rspwn,3 r,sb,drp,l 3,r";
+    ;
+    string bR = ",tr,2 p6,97 r p6,l" + jmp;
+    string bL = ",tl,2 p6,97 l p6,ss,adj,tl,drp" + jmp;
+    string breakBlock = ",rspwn,r,j2" +
+                        bR + bL +
+                        bR + bL +
+                        bR + bL +
+                        bR + bL +
+                        bR + bL +
+                        bR + bL +
+                        bR + bL +
+                        bR + bL +
+                        bR + bL +
+                        bR + bL +
+                        bR + bL +
+                        bR + bL +
+                        bR;
+    string cWWRight = ",tr,p8,97 r p8,adj,rp10t1,rp10t2,spb,rp1t1,j2";
+    string cWWLeft = ",tl,p8,97 l p8,adj,rp10t1,rp10t2,spb,rp1t1,j2";
+    string createWorld = "r,3 j2" + cWWRight + cWWLeft + cWWRight + cWWLeft + cWWRight + cWWLeft + cWWRight + cWWLeft + cWWRight + cWWLeft + cWWRight + cWWLeft;
 
-    ss << "r"
-       << ",2 j2" << dropFirst << ",2 j2" << dropSecond
-       << ",3 j2" << dropFirst << ",3 j2" << dropSecond
-       << ",4 j2" << dropFirst << ",4 j2" << dropSecond
-       << ",5 j2" << dropFirst << ",5 j2" << dropSecond
-       << ",6 j2" << dropFirst << ",6 j2" << dropSecond
-       << ",7 j2" << dropFirst << ",7 j2" << dropSecond
-       << ",8 j2" << dropFirst << ",8 j2" << dropSecond
-       << ",9 j2" << dropFirst << ",9 j2" << dropSecond
-       << ",10 j2" << dropFirst << ",10 j2" << dropSecond
-       << ",11 j2" << dropFirst << ",11 j2" << dropSecond
-       << ",12 j2" << dropFirst << ",12 j2" << dropSecond
-       << ",13 j2" << dropFirst << ",13 j2" << dropSecond
-       << ",14 j2" << dropFirst << ",14 j2" << dropSecond
-       << ",15 j2" << dropFirst << ",15 j2" << dropSecond;
-    //ss << "r" << jump << harvestRowRight << jump << harvestRowLeft << jump << harvestRowRight << jump << harvestRowLeft << jump << harvestRowRight << jump << harvestRowLeft << jump << harvestRowRight << jump << harvestRowLeft << jump << harvestRowRight << jump << harvestRowLeft << jump << harvestRowRight << jump << harvestRowLeft << jump << harvestRowRight << jump << harvestRowLeft;
-    //18 9
-    /* ss << "r,9 j2" << placeRowRight << jump << placeRowLeft << ",15 l,4 r,5 l,r,11 j2"
-       << placeRowRight << jump << placeRowLeft << ",15 l,4 r,5 l,r,13 j2"
-       << placeRowRight << jump << placeRowLeft << ",15 l,4 r,5 l,r,15 j2"
-       << placeRowRight << jump << placeRowLeft << ",15 l,r,9 j2" << breakRowRight << jump << breakRowLeft << jump << breakRowRight << jump << breakRowLeft << jump << breakRowRight << jump << breakRowLeft << jump << breakRowRight << jump << breakRowLeft; */
-    // ss << "r,3 j2" << placeRowRight << jump << placeRowLeft << jump << placeRowRight << jump << placeRowLeft << jump << placeRowRight << jump << placeRowLeft << ",3 l,r,j2" << breakRowRight << jump << breakRowLeft << jump << breakRowRight << jump << breakRowLeft << jump << breakRowRight << jump << breakRowLeft << jump << breakRowRight << jump << breakRowLeft;
-    //ss << "r" << breakRowRight << jump << breakRowLeft << jump << breakRowRight << jump << breakRowLeft << jump << breakRowRight << jump << breakRowLeft << jump << breakRowRight << jump << breakRowLeft << jump << breakRowRight << jump << breakRowLeft;
-    //ss << "r,9 j2" << placeRowRight << jump << placeRowLeft << ",3 l,8 r,9 l,r,11 j2" << placeRowRight << jump << placeRowLeft;
-    /*  ss << "r" 
-        << ",adj,7 j2" << placeRowRight << jump << placeRowLeft << jump << placeRowRight << jump << placeRowLeft << jump << placeRowRight << jump << placeRowLeft << jump << placeRowRight << jump << placeRowLeft << jump << placeRowRight << jump << placeRowLeft << jump;  */
-    /* << harvestRowRight << jump << harvestRowLeft << jump << harvestRowRight << jump << harvestRowLeft << jump << harvestRowRight << jump << harvestRowLeft << jump << harvestRowRight << jump << harvestRowLeft << ",5 l"
-       << ",r" << jump << placeRowRight << jump << placeRowLeft << jump << placeRowRight << jump << placeRowLeft << jump << placeRowRight << jump << placeRowLeft << jump << placeRowRight << jump << placeRowLeft << jump << placeRowRight << jump << placeRowLeft << ",5 l"
-       << ",r" << jump << breakRowRight a<< jump << breakRowLeft << jump << breakRowRight << jump << breakRowLeft << jump << breakRowRight << jump << breakRowLeft << jump << breakRowRight << jump << breakRowLeft << jump << breakRowRight << jump << breakRowLeft << ",5 l"; */
-    string s = ss.str();
+    //whitedoorscript
+    //onecicle
+    string onecicle = "ss,rp8t2,rp6t2,sf,rp8t2,sb,drp,ss,rp8t2,rp6t2,sf,rp8t2,sb,drp,ss,rp8t2,rp6t2,sf,rp8t2,sb,drp,ss,rp8t2,rp6t2,sf,rp8t2,sb,drp,ss,rp8t2,rp6t2,sf,rp8t2,sb,drp,ss,rp8t2,rp6t2,sf,rp8t2,sb,drp,ss,rp8t2,rp6t2,sf,rp8t2,sb,drp,ss,rp8t2,rp6t2,sf,rp8t2,sb,drp,ss,rp8t2,rp6t2,sf,rp8t2,sb,drp,ss,rp8t2,rp6t2,sf,rp8t2,sb,drp,ss,rp8t2,rp6t2,sf,rp8t2,sb,drp,ss,rp8t2,rp6t2,sf,rp8t2,sb,drp,ss,rp8t2,rp6t2,sf,rp8t2,sb,drp,ss,rp8t2,rp6t2,sf,rp8t2,sb,drp,ss,rp8t2,rp6t2,sf,rp8t2,sb,drp,ss,rp8t2,rp6t2,sf,rp8t2,sb,drp,ss,rp8t2,rp6t2,sf,rp8t2,sb,drp,ss,rp8t2,rp6t2,sf,rp8t2,sb,drp,ss,rp8t2,rp6t2,sf,rp8t2,sb,drp,ss,rp8t2,rp6t2,sf,rp8t2,sb,drp,ss,rp8t2,rp6t2,sf,rp8t2,sb,drp,ss,rp8t2,rp6t2,sf,rp8t2,sb,drp,ss,rp8t2,rp6t2,sf,rp8t2,sb,drp,ss,rp8t2,rp6t2,sf,rp8t2,sb,drp,ss,rp8t2,rp6t2,sf,rp8t2,sb,drp,ss,rp8t2,rp6t2,sf,rp8t2,sb,drp,ss,rp8t2,rp6t2,sf,rp8t2,sb,drp,ss,rp8t2,rp6t2,sf,rp8t2,sb,drp,ss,rp8t2,rp6t2,sf,rp8t2,sb,drp,ss,rp8t2,rp6t2,sf,rp8t2,sb,drp,ss,rp8t2,rp6t2,sf,rp8t2,sb,drp,ss,rp8t2,rp6t2,sf,rp8t2,sb,drp,ss,rp8t2,rp6t2,sf,rp8t2,sb,drp,ss,rp8t2,rp6t2,sf,rp8t2,sb,drp,ss,rp8t2,rp6t2,sf,rp8t2,sb,drp,ss,rp8t2,rp6t2,sf,rp8t2,sb,drp,ss,rp8t2,rp6t2,sf,rp8t2,sb,drp,ss,rp8t2,rp6t2,sf,rp8t2,sb,drp,ss,rp8t2,rp6t2,sf,rp8t2,sb,drp,ss,rp8t2,rp6t2,sf,rp8t2,sb,drp";
+    /*   string fourcicle = onecicle + onecicle + onecicle + onecicle;
+    string twentycicle = fourcicle + fourcicle + fourcicle + fourcicle + fourcicle;
+    string fcycle = twentycicle + twentycicle; */
+    string whitedoorscript = "ss,sb";
+    string abc = "10 r,ss,rp8r2,rp6r2,sf,rp10r2,sb,drp";
+    string ab = ",ss,rp8r2,rp6r2,sf,rp10r2,sb,drp";
+    string finalstrings = ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab + ab;
+    string finalfinal = "51 r" + finalstrings + ",l" + finalstrings + ",l" + finalstrings + ",l" + finalstrings + ",l" + finalstrings + ",l" + finalstrings + ",l" + finalstrings + ",l" + finalstrings + ",l" + finalstrings + ",l" + finalstrings + ",l" + finalstrings + ",l" + finalstrings + ",l" + finalstrings + ",l" + finalstrings + ",l" + finalstrings + ",l" + finalstrings + ",l" + finalstrings + ",l" + finalstrings + ",l" + finalstrings + ",l" + finalstrings + ",l" + finalstrings + ",l" + finalstrings + ",l" + finalstrings + ",l" + finalstrings + ",l" + finalstrings + ",l" + finalstrings + ",l" + finalstrings + ",l" + finalstrings + ",l" + finalstrings + ",l" + finalstrings + ",l" + finalstrings + ",l" + finalstrings + ",l" + finalstrings + ",l" + finalstrings + ",l" + finalstrings + ",l" + finalstrings + ",l" + finalstrings + ",l" + finalstrings + ",l" + finalstrings + ",l" + finalstrings + ",l";
+
+    /* vector<turnHandle> turnArr = parseToTurnHandle(finalfinal);
+    turnHandler(&turnArr); */
+    /*     string abc = "92 r";
+    vector<turnHandle>
+        turnArr = parseToTurnHandle(abc);
+    turnHandler(&turnArr);
+    for (int j = 0; j < 96; j++)
+    {
+        string abc = "l";
+        vector<turnHandle>
+            turnArr = parseToTurnHandle(abc);
+        turnHandler(&turnArr);
+        for (int i = 0; i < 40; i++)
+        {
+
+            Sleep(2000);
+            string whitedoor = "ss,rp10t2,rp6t2,sf,rp8t2,sb,tl,tr,drp";
+            vector<turnHandle>
+                turnArr = parseToTurnHandle(whitedoor);
+            turnHandler(&turnArr);
+        }
+    } */
+    string cleanr = ",adj,rp8t1,rp8t2,spb,rp1t1,j2,tr,p8,97 r p8";
+    string cleanl = ",adj,rp8t1,rp8t2,spb,rp1t1,j2,tl,p8,97 l p8";
+    string cleanrl = cleanr + cleanl;
+    string cleanWorld = "r,2 j2" + cleanrl + cleanrl + cleanrl + cleanrl + cleanrl + cleanrl + cleanrl + cleanrl;
+
+    string s = cleanWorld /* breakTotal +   collect */ /*createWorld "r,j2"  + breakTotal  + collect + + place + breakBlock*/;
+
+    //lock is pepperS
+    //whitedoor is pepperB
 
     vector<turnHandle>
         turnArr = parseToTurnHandle(s);
 
     turnHandler(&turnArr);
 
-    /*  vector<turnHandle> turnArr = {
-        {1, "right"},
-        {9, "jump2"},
-        {1, "selectpepperB"},
-        {96, "right", "relpunch1center"},
-        {1, "selectfist"},
-        {96, "left", "punch4"}
-           {1, "selectpepperS"},
-        {96, "right", "relpunch1center"},
-        {1, "right"},
-        {1, "jump2"},
-        {96, "left", "relpunch1center"},
-        {8, "left"},
-        {8, "right"},
-        {9, "left"},
-        {1, "right"},
-        {6, "jump2"},
-        {1, "selectpepperS"},
-        {96, "right", "relpunch1center"},
-        {1, "right"},
-        {1, "jump2"},
-        {96, "left", "relpunch1center"},
-        {8, "left"},
-        {8, "right"},
-        {9, "left"},
-        {1, "right"},
-        {8, "jump2"},
-        {1, "selectpepperS"},
-        {96, "right", "relpunch1center"},
-        {1, "right"},
-        {1, "jump2"},
-        {96, "left", "relpunch1center"},
-        {9, "left"} */
-    /*     {8, "jump2"},
-        {1, "none", "relpunch8top1"},
-        {1, "none", "relpunch8top2"},
-        {1, "selectplatformB"},
-        {1, "none", "relpunch1top1"}, 
-        {1, "jump2"},
-        {1, "selectfist"},
-     //leftright
-        {1, "right"},
-        {1, "none", "punch8"},
-        {97, "right", "punch8"},
-        {1, "none", "relpunch8top1"},
-        {1, "none", "relpunch8top2"},
-        {1, "selectplatformB"},
-        {1, "none", "relpunch1top1"},
-        {1, "jump2"},
-        {1, "selectfist"},
-        //rightleft
-        {1, "left"},
-        {1, "none", "punch8"},
-        {97, "left", "punch8"},
-        {1, "none", "relpunch8top1"},
-        {1, "none", "relpunch8top2"},
-        {1, "selectplatformB"},
-        {1, "none", "relpunch1top1"},
-        {1, "jump2"},
-        {1, "selectfist"}, */
-
-    /*   turnHandler(&turnArr); */
-    // turnArr.push_back({10, "relpunch1center", "relpunch1top1", "relpunch1bottom1"});
-    // turnArr.push_back({96, "right", "relpunch6top2"});
-    // turnHandler(&turnArr);
-    // openInventory();
-    // getPlayer();
-    /*  while (true)
-    {
-        char c = getch();
-        if (c == 27)
-            break;
-        else
-        { */
-    /*   int howMany = 200;  
-            double sum = 0.0;
-           for (int i = 0; i < howMany; i++)
-            {
-                auto start = std::chrono::system_clock::now(); */
-    // Some computation here
-    /* while (true)
-    {
-        char c = getch();
-        if (c == 27)
-            break;
-        else
-            getPlayer();
-    } */
-    /*   auto end = std::chrono::system_clock::now();
-               std::chrono::duration<double> elapsed_seconds = end - start;
-                std::time_t end_time = std::chrono::system_clock::to_time_t(end);
-               sum += elapsed_seconds.count();
-            }
-            double time = sum / howMany;
-            cout << "elapsed time: " << time << endl; */
-    /*      }
-    } */
-    /* int *a = getPx(0, 0);
-    cout << a[0] << a[1] << a[2] << endl; */
     return 0;
 }
